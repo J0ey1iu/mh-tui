@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock
+
+from mh_tui.display import ExportEntry
+from mh_tui.export_presenter import ExportPresenter
+
+
+class TestExportPresenter:
+    def test_export_svg_creates_file(self, tmp_path):
+        presenter = ExportPresenter(
+            get_theme=MagicMock(return_value="nord"), say=MagicMock()
+        )
+        export_history = [
+            ExportEntry(text="Hello"),
+            ExportEntry(text="**bold**", is_markdown=True),
+        ]
+        output_path = str(tmp_path / "chat.svg")
+
+        presenter.export_svg(output_path, export_history, chat_width=80)
+
+        assert Path(output_path).exists()
+        svg_content = Path(output_path).read_text(encoding="utf-8")
+        assert "<svg" in svg_content or "xml" in svg_content.lower()
+
+    def test_export_svg_with_styled_text(self, tmp_path):
+        presenter = ExportPresenter(
+            get_theme=MagicMock(return_value="nord"), say=MagicMock()
+        )
+        export_history = [ExportEntry(text="Error occurred", style="bold red")]
+        output_path = str(tmp_path / "styled.svg")
+
+        presenter.export_svg(output_path, export_history, chat_width=80)
+
+        assert Path(output_path).exists()
+
+    def test_export_svg_creates_parent_dirs(self, tmp_path):
+        presenter = ExportPresenter(
+            get_theme=MagicMock(return_value="nord"), say=MagicMock()
+        )
+        export_history = [ExportEntry(text="test")]
+        output_path = str(tmp_path / "subdir" / "nested" / "chat.svg")
+
+        presenter.export_svg(output_path, export_history, chat_width=80)
+
+        assert Path(output_path).exists()
+
+    def test_empty_export_history(self, tmp_path):
+        presenter = ExportPresenter(
+            get_theme=MagicMock(return_value="nord"), say=MagicMock()
+        )
+        output_path = str(tmp_path / "empty.svg")
+
+        presenter.export_svg(output_path, [], chat_width=80)
+
+        assert Path(output_path).exists()

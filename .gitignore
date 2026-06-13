@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+.vscode
+.DS_Store
+
+*.txt
+
+# Local user config & session data (TUI's working directory)
+.minimal_harness/
+
+# Test artifacts
+.pytest_cache/
+.ruff_cache/
