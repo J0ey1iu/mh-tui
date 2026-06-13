@@ -114,7 +114,7 @@ _CSS_PATH = Path(__file__).parent / "app.tcss"
 
 
 def _get_built_in_tool_names() -> set[str]:
-    from minimal_harness.tool.registry import get_builtin_tool_names
+    from mh_builtin_tools import get_builtin_tool_names
 
     return get_builtin_tool_names()
 

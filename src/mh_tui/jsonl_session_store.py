@@ -29,14 +29,19 @@ from minimal_harness.memory import (
     MemoryData,
     Message,
 )
-from minimal_harness.memory_store import MemoryFactory
-from minimal_harness.session import Session, SessionSummary
 from minimal_harness.types import TokenUsage
+
+from mh_tui._session_types import (
+    MemoryFactory,
+    Session,
+    SessionStoreProtocol,
+    SessionSummary,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class JsonlSessionStore:
+class JsonlSessionStore(SessionStoreProtocol):
     """Persistence layer backed by local JSON files.
 
     Each session is stored as ``{sessions_dir}/{session_id}.json``.

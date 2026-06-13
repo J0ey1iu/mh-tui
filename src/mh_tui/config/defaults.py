@@ -2,20 +2,39 @@
 
 All modules in the config subpackage import defaults from here to avoid
 circular imports. This module has zero internal dependencies.
+
+Defaults are read from ``MH_*`` env vars (the same names the SDK used
+to expose via ``Settings``). When the env var is unset, hard-coded
+fallbacks are used.
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
-from minimal_harness.settings import Settings
+
+def _env(name: str, default: str) -> str:
+    return os.environ.get(name, default)
+
+
+def _env_int(name: str, default: int) -> int:
+    val = os.environ.get(name)
+    return int(val) if val else default
+
+
+DEFAULT_BASE_URL: str = _env("MH_BASE_URL", "https://aihubmix.com/v1")
+DEFAULT_MODEL: str = _env("MH_MODEL", "deepseek-v4-flash")
+DEFAULT_THEME: str = _env("MH_THEME", "tokyo-night")
+DEFAULT_MAX_ITERATIONS: int = _env_int("MH_MAX_ITERATIONS", 100)
+
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "base_url": Settings.base_url(),
-    "api_key": Settings.api_key(),
-    "model": Settings.model(),
+    "base_url": DEFAULT_BASE_URL,
+    "api_key": _env("MH_API_KEY", ""),
+    "model": DEFAULT_MODEL,
     "tools_path": "",
-    "theme": Settings.theme(),
+    "theme": DEFAULT_THEME,
     "provider": "openai",
     "reasoning_effort": None,
     "default_agent": "general_assistant",

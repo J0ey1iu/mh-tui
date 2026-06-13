@@ -6,7 +6,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from minimal_harness.session import Session
+    from mh_tui._session_types import Session
 
 
 class SessionStatus(Enum):
