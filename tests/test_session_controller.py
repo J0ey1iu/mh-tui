@@ -74,12 +74,8 @@ class TestPresetAgents:
         self, controller
     ):
         with (
-            patch(
-                "mh_tui.agent_manager.load_agents_config"
-            ) as mock_load,
-            patch(
-                "mh_tui.agent_manager.read_system_prompt"
-            ) as mock_read,
+            patch("mh_tui.agent_manager.load_agents_config") as mock_load,
+            patch("mh_tui.agent_manager.read_system_prompt") as mock_read,
         ):
             mock_load.return_value = [
                 {
@@ -106,12 +102,8 @@ class TestPresetAgents:
     @pytest.mark.asyncio
     async def test_preset_agents_registered_in_registry(self, controller):
         with (
-            patch(
-                "mh_tui.agent_manager.load_agents_config"
-            ) as mock_load,
-            patch(
-                "mh_tui.agent_manager.read_system_prompt"
-            ) as mock_read,
+            patch("mh_tui.agent_manager.load_agents_config") as mock_load,
+            patch("mh_tui.agent_manager.read_system_prompt") as mock_read,
         ):
             mock_load.return_value = [
                 {
