@@ -1,11 +1,12 @@
-"""Tool collection — delegates to mh-builtin-tools."""
+"""Tool collection — registers built-in + external tools."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from mh_builtin_tools import collect_tools as _collect
 from minimal_harness.tool.registry import ToolRegistry
+
+from mh_tui.built_in import collect_tools as _collect
 
 
 async def collect_tools(

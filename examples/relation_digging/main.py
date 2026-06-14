@@ -1,13 +1,13 @@
 import asyncio
 import os
 
-from openai import AsyncOpenAI
-
-from mh_builtin_tools import get_bash_tools  # noqa: F401  (kept for parity)
 from minimal_harness.agent.simple import SimpleAgent
 from minimal_harness.llm.openai import OpenAILLMProvider
 from minimal_harness.memory import ConversationMemory
 from minimal_harness.types import AgentEnd, LLMChunk
+from openai import AsyncOpenAI
+
+from mh_tui.built_in import get_bash_tools  # noqa: F401  (kept for parity)
 
 api_key = os.getenv("MH_API_KEY")
 base_url = os.getenv("MH_BASE_URL")

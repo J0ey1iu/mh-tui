@@ -10,6 +10,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from minimal_harness.agent.registry import AgentRegistry
+from minimal_harness.agent.runtime import AgentRuntime
+from minimal_harness.llm import LLMProvider, LLMProviderRegistry
+from minimal_harness.llm.factory import register_builtin_providers
+from minimal_harness.memory import Memory
+from minimal_harness.tool.registry import ToolRegistry
+from minimal_harness.types import (
+    AgentEnd,
+    AgentEvent,
+    AgentMetadata,
+    ExtraHeadersProvider,
+    ToolMetadata,
+)
 from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
@@ -17,8 +30,6 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Footer, ListView, Static
 
-from minimal_harness.agent.registry import AgentRegistry
-from minimal_harness.agent.runtime import AgentRuntime
 from mh_tui.actions.compact import (
     action_compact as _action_compact,
 )
@@ -68,6 +79,7 @@ from mh_tui.handoff_widget import HandoffWidgetProvider
 from mh_tui.local_file_operation_widget import (
     FileOpWidgetProvider,
 )
+from mh_tui.logging_setup import setup_logging
 from mh_tui.messages import (
     AtCommandHide,
     AtCommandNavigateDown,
@@ -84,6 +96,7 @@ from mh_tui.messages import (
 )
 from mh_tui.modals import CopySelectScreen, ErrorScreen
 from mh_tui.runtime_session import SessionStatus
+from mh_tui.runtime_tools import register_runtime_tools
 from mh_tui.session_controller import SessionController
 from mh_tui.session_replayer import SessionReplayer
 from mh_tui.slash_handler import SlashCommandHandler
@@ -94,19 +107,6 @@ from mh_tui.widgets import (
     SessionNotification,
     SessionNotificationClicked,
 )
-from mh_tui.logging_setup import setup_logging
-from minimal_harness.llm import LLMProvider, LLMProviderRegistry
-from minimal_harness.llm.factory import register_builtin_providers
-from minimal_harness.memory import Memory
-from mh_tui.runtime_tools import register_runtime_tools
-from minimal_harness.tool.registry import ToolRegistry
-from minimal_harness.types import (
-    AgentEnd,
-    AgentEvent,
-    AgentMetadata,
-    ExtraHeadersProvider,
-    ToolMetadata,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ _CSS_PATH = Path(__file__).parent / "app.tcss"
 
 
 def _get_built_in_tool_names() -> set[str]:
-    from mh_builtin_tools import get_builtin_tool_names
+    from mh_tui.built_in import get_builtin_tool_names
 
     return get_builtin_tool_names()
 

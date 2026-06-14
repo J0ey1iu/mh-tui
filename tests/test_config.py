@@ -5,6 +5,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from minimal_harness.tool.base import StreamingTool
+from minimal_harness.tool.registry import ToolRegistry
+
 from mh_tui.config import (
     DEFAULT_CONFIG,
     add_model,
@@ -17,8 +20,6 @@ from mh_tui.config import (
     save_config,
     save_models,
 )
-from minimal_harness.tool.base import StreamingTool
-from minimal_harness.tool.registry import ToolRegistry
 
 
 def _patch_config_dir(monkeypatch, base: Path) -> None:
@@ -171,10 +172,8 @@ class TestCollectTools:
         config = {"tools_path": ""}
 
         with (
-            patch("mh_builtin_tools.bash.get_tools") as mock_bash,
-            patch(
-                "mh_builtin_tools.local_file_operation.get_tools"
-            ) as mock_lfo,
+            patch("mh_tui.built_in.bash.get_tools") as mock_bash,
+            patch("mh_tui.built_in.local_file_operation.get_tools") as mock_lfo,
         ):
             mock_bash.return_value = {
                 "bash": StreamingTool(
@@ -213,11 +212,9 @@ class TestCollectTools:
         config = {"tools_path": "/some/path"}
 
         with (
-            patch("mh_builtin_tools.bash.get_tools") as mock_bash,
-            patch(
-                "mh_builtin_tools.local_file_operation.get_tools"
-            ) as mock_lfo,
-            patch("mh_builtin_tools.collector.load_external_tools") as mock_load,
+            patch("mh_tui.built_in.bash.get_tools") as mock_bash,
+            patch("mh_tui.built_in.local_file_operation.get_tools") as mock_lfo,
+            patch("mh_tui.built_in.collector.load_external_tools") as mock_load,
         ):
             mock_bash.return_value = {}
             mock_lfo.return_value = {}
@@ -241,11 +238,9 @@ class TestCollectTools:
         config = {"tools_path": "/path"}
 
         with (
-            patch("mh_builtin_tools.bash.get_tools") as mock_bash,
-            patch(
-                "mh_builtin_tools.local_file_operation.get_tools"
-            ) as mock_lfo,
-            patch("mh_builtin_tools.collector.load_external_tools") as mock_load,
+            patch("mh_tui.built_in.bash.get_tools") as mock_bash,
+            patch("mh_tui.built_in.local_file_operation.get_tools") as mock_lfo,
+            patch("mh_tui.built_in.collector.load_external_tools") as mock_load,
             patch("warnings.warn") as mock_warn,
         ):
             mock_bash.return_value = {
