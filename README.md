@@ -7,6 +7,20 @@ A local-running, single-user counterpart to
 (cloud-distributed, multi-tenant). Both consume the same `minimal-harness`
 SDK and share the same Agent / Tool / Memory / Event abstractions.
 
+## Position in the mh ecosystem
+
+| Package | Role | Repo |
+|---|---|---|
+| [minimal-harness](https://github.com/J0ey1iu/minimal-harness) | Core SDK (types, protocols, agent runtime, LLM abstraction, memory/session). **This package depends on it.** | [J0ey1iu/minimal-harness](https://github.com/J0ey1iu/minimal-harness) |
+| [mh-service-kit](https://github.com/J0ey1iu/mh-service-kit) | FastAPI service SDK with SSE engine. Provides the `SSEAgentDriver` used when a TUI agent delegates to a remote service via `RemoteAgentBinding`. | [J0ey1iu/mh-service-kit](https://github.com/J0ey1iu/mh-service-kit) |
+| [mh-orchestration-service](https://github.com/J0ey1iu/mh-orchestration-service) | Multi-tenant FastAPI gateway (sessions, eval, M2M auth). The cloud counterpart of this TUI. | [J0ey1iu/mh-orchestration-service](https://github.com/J0ey1iu/mh-orchestration-service) |
+| [agent-tool-service](https://github.com/J0ey1iu/mh-incubator/tree/main/packages/agent-tool-service) | Example service in the umbrella repo. The TUI can target its agents via `RemoteAgentBinding`. | [J0ey1iu/mh-incubator](https://github.com/J0ey1iu/mh-incubator) |
+| [mh-incubator](https://github.com/J0ey1iu/mh-incubator) | Umbrella workspace that wires every package together for end-to-end demos. | [J0ey1iu/mh-incubator](https://github.com/J0ey1iu/mh-incubator) |
+
+> **Built-in tools** (`bash`, `local_file_operation`) ship in this package as
+> `mh_tui.built_in`. They are application glue for the TUI, not part of the
+> SDK.
+
 ## What This Is
 
 `mh-tui` is the official Textual-based TUI front-end for the `minimal-harness`
@@ -158,4 +172,4 @@ from mh_tui import TUIApp
 
 ## License
 
-Same as minimal-harness.
+Same as minimal-harness. See [mh-incubator](https://github.com/J0ey1iu/mh-incubator) for the umbrella license.
