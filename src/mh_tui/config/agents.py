@@ -54,6 +54,9 @@ def load_agents_config() -> list[dict[str, Any]]:
                 result = []
                 for a in data:
                     if isinstance(a, dict) and "name" in a:
+                        compaction = a.get("compaction")
+                        if compaction is not None and not isinstance(compaction, dict):
+                            compaction = None
                         result.append(
                             {
                                 "name": str(a["name"]),
@@ -61,6 +64,8 @@ def load_agents_config() -> list[dict[str, Any]]:
                                 "description": str(a.get("description", "")),
                                 "system_prompt": str(a.get("system_prompt", "")),
                                 "default_tools": list(a.get("default_tools", [])),
+                                "agent_type": str(a.get("agent_type", "simple")),
+                                "compaction": compaction,
                             }
                         )
                 return result

@@ -13,6 +13,7 @@ from mh_tui.runtime_session import ConversationSession
 
 if TYPE_CHECKING:
     from minimal_harness.agent.registry import AgentRegistryProtocol
+
     from mh_tui.context import AppContext
 
 
@@ -48,9 +49,10 @@ class AgentManager:
                 display_name=a.get("display_name", ""),
                 description=a.get("description", ""),
                 system_prompt=system_prompt,
-                agent_type="simple",
+                agent_type=a.get("agent_type", "simple"),
                 tool_names=resolved_tool_names,
                 metadata_id=a["name"],
+                compaction=a.get("compaction"),
             )
             await self._agent_registry.register(metadata)
 

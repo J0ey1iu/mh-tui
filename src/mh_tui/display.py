@@ -8,6 +8,20 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from minimal_harness.types import (
+    AgentEnd,
+    AgentEvent,
+    CompactionChunk,
+    CompactionEnd,
+    CompactionStart,
+    ExecutionStart,
+    LLMChunk,
+    LLMEnd,
+    MessageEvent,
+    ToolEnd,
+    ToolProgress,
+    ToolStart,
+)
 from rich.text import Text
 
 from mh_tui.buffer import StreamBuffer
@@ -32,16 +46,6 @@ from mh_tui.streaming_controller import StreamingController
 from mh_tui.tool_widget_provider import (
     ToolWidgetProvider,
     ToolWidgetRegistry,
-)
-from minimal_harness.types import (
-    AgentEnd,
-    AgentEvent,
-    ExecutionStart,
-    LLMChunk,
-    LLMEnd,
-    ToolEnd,
-    ToolProgress,
-    ToolStart,
 )
 
 if TYPE_CHECKING:
@@ -124,6 +128,7 @@ class ChatDisplay:
         self._tool_widgets: dict[str, _ToolWidgetState] = {}
         self._tool_call_content: dict[str, Text] = {}
         self._last_progress_update: dict[str, float] = {}
+        self._active_compaction: dict[str, Any] | None = None
 
     def _is_at_bottom(self) -> bool:
         max_scroll = self._chat.max_scroll_y
@@ -429,6 +434,68 @@ class ChatDisplay:
                     f"  [{u['prompt_tokens']}+{u['completion_tokens']}={u['total_tokens']} tok]",
                     "dim",
                 )
+        elif isinstance(event, CompactionStart):
+            self._active_compaction = {
+                "dropped": event.dropped_message_count,
+                "keep_recent": event.keep_recent,
+                "prompt_tokens": event.prompt_tokens,
+                "preview": "",
+                "summary_chars": 0,
+                "started_at": time.time(),
+            }
+            self.say(
+                f"  \U0001f5dc Compressing {event.dropped_message_count} "
+                f"messages \u2192 keep last {event.keep_recent} "
+                f"(trigger: {event.prompt_tokens} prompt tokens)",
+                "bold bright_cyan",
+            )
+        elif isinstance(event, CompactionChunk):
+            preview = event.accumulated
+            if len(preview) > 200:
+                preview = preview[:197] + "\u2026"
+            self.say(
+                f"      \u2588 {preview}",
+                "dim cyan",
+            )
+            if hasattr(self, "_active_compaction") and self._active_compaction:
+                self._active_compaction["summary_chars"] = len(event.accumulated)
+        elif isinstance(event, CompactionEnd):
+            err = event.error
+            if err is not None:
+                self.say(
+                    f"  \u26a0 Compaction failed: {err}",
+                    "bold #f38ba8",
+                )
+            else:
+                self.say(
+                    f"  \u2713 Compaction done in {_format_duration(event.duration)} "
+                    f"\u2014 summary {len(event.summary)} chars, "
+                    f"{event.dropped_message_count} msgs folded",
+                    "bright_green",
+                )
+            if hasattr(self, "_active_compaction"):
+                self._active_compaction = None
+        elif isinstance(event, MessageEvent):
+            m = event.message
+            role = m.get("role", "?")
+            if role == "compaction":
+                # A compacted summary, stored as a CompactionMessage in
+                # the session log. get_forward_messages() re-projects
+                # these to role="assistant" for the LLM, but on the
+                # frontend we render them with the 📼 marker so the user
+                # sees they were produced by a compaction, not by the
+                # LLM itself.
+                content = m.get("content", "")
+                meta = m.get("meta") or {}
+                if isinstance(content, str) and content:
+                    dropped = meta.get("dropped_count", 0)
+                    label = (
+                        f"  \U0001f4dc Folded summary ({len(content)} chars"
+                        + (f", {dropped} msgs" if dropped else "")
+                        + "):"
+                    )
+                    self.say(label, "bold bright_cyan")
+                    self.say(content, is_markdown=True)
         elif isinstance(event, ExecutionStart):
             pass
         elif isinstance(event, ToolStart):

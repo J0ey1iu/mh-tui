@@ -58,6 +58,7 @@ from mh_tui.actions.team import action_team as _action_team
 from mh_tui.actions.tools import action_tools as _action_tools
 from mh_tui.at_handler import AtCommandHandler
 from mh_tui.bash_widget import BashWidgetProvider
+from mh_tui.compaction import TUICompactingAgentFactory
 from mh_tui.config import (
     DEFAULT_CONFIG,
     load_config,
@@ -170,11 +171,17 @@ class TUIApp(App):
         )
         if provider_cfg:
             self._llm_registry.set_default_config("openai", provider_cfg)
+        from minimal_harness.agent.factory import DefaultAgentFactory
+
         self._runtime = AgentRuntime(
             agent_registry=self._agent_registry,
             session_store=self.ctx.session_store,
             tool_registry=self.ctx.registry,
             llm_provider_resolver=self._resolve_llm_provider,
+            agent_factory=DefaultAgentFactory(
+                llm_provider_resolver=self._resolve_llm_provider,
+                local_agent_factories={"compacting": TUICompactingAgentFactory()},
+            ),
         )
         self._ctrl = SessionController(self._runtime, self._agent_registry, self.ctx)
         self._first = True

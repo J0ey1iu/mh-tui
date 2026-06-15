@@ -62,6 +62,22 @@ DEFAULT_AGENTS: list[dict[str, Any]] = [
         "system_prompt": "research_assistant.md",
         "default_tools": ["handoff", "discover_agents"],
     },
+    {
+        "name": "compacting_assistant",
+        "display_name": "Compacting Assistant",
+        "description": (
+            "Long-running assistant that auto-folds older messages into a "
+            "summary when the prompt grows large. Use for multi-hour "
+            "conversations where the simple agent would run out of context."
+        ),
+        "system_prompt": "general_assistant.md",
+        "default_tools": ["handoff", "discover_agents"],
+        "agent_type": "compacting",
+        "compaction": {
+            "prompt_token_threshold": 8000,
+            "keep_recent": 6,
+        },
+    },
 ]
 
 AGENT_PROMPTS: dict[str, str] = {
