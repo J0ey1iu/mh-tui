@@ -520,10 +520,47 @@ class JsonlManagedSession:
         return self._inner.get_new_messages()
 
     def mark_all_persisted(self) -> None:
-        self._inner.mark_all_persisted()
+        return self._inner.mark_all_persisted()
 
     def set_persisted_count(self, count: int) -> None:
         self._inner.set_persisted_count(count)
+
+    def compact(
+        self,
+        summarizer: Any,
+        keep_recent: int,
+        prompt_tokens: int = 0,
+    ) -> Any:
+        """Stream-compact the inner ``ConversationMemory``.
+
+        Delegates to ``self._inner.compact()`` and persists the final
+        buffer state when the fold completes. On failure, the inner
+        memory leaves the buffer untouched and we propagate the
+        ``CompactionEnd.error`` to the caller without persisting.
+
+        Implements the ``Memory.compact`` Protocol method.
+        ``CompactionAgent`` calls this with the agent's
+        ``prompt_token_threshold`` check already passed; the inner
+        generator yields ``CompactionStart`` / ``CompactionChunk*s`` /
+        ``CompactionEnd`` exactly as documented on
+        ``ConversationMemory.compact``.
+        """
+        from minimal_harness.types import CompactionEnd
+
+        async def _wrapper() -> Any:
+            async for evt in self._inner.compact(
+                summarizer, keep_recent, prompt_tokens=prompt_tokens
+            ):
+                if isinstance(evt, CompactionEnd):
+                    # Only persist when the fold actually applied (no
+                    # error and dropped > 0). On failure the inner
+                    # buffer is untouched so the on-disk copy is
+                    # already in sync.
+                    if evt.error is None and evt.dropped_message_count > 0:
+                        self._schedule_save()
+                yield evt
+
+        return _wrapper()
 
     # -- internal -------------------------------------------------------
 
