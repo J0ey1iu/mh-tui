@@ -28,6 +28,7 @@ from mh_tui.buffer import StreamBuffer
 from mh_tui.chat_widgets import (
     AssistantMsg,
     ChatMsg,
+    CompactionMsg,
     ReasoningMsg,
     ToolCallMsg,
     ToolResultMsg,
@@ -105,6 +106,19 @@ class _ToolWidgetState:
     provider: ToolWidgetProvider | None = None
 
 
+@dataclass
+class _CompactionWidgetState:
+    """Tracks the active CompactionMsg widget through one
+    ``CompactionStart → *CompactionChunk → CompactionEnd`` sequence.
+
+    Stored on ``self._active_compaction`` so the display can dispatch
+    streaming chunks and the final end event to the right widget
+    without re-mounting anything.
+    """
+
+    widget: CompactionMsg
+
+
 class ChatDisplay:
     """Manages chat area content: messages, streaming, event dispatch, export history."""
 
@@ -128,7 +142,13 @@ class ChatDisplay:
         self._tool_widgets: dict[str, _ToolWidgetState] = {}
         self._tool_call_content: dict[str, Text] = {}
         self._last_progress_update: dict[str, float] = {}
-        self._active_compaction: dict[str, Any] | None = None
+        self._active_compaction: _CompactionWidgetState | None = None
+        # Set by CompactionEnd on the live flow and consumed by the
+        # trailing MessageEvent(role="compaction") so the latter
+        # becomes a no-op display-wise. This is how we avoid
+        # double-rendering the same summary that the widget already
+        # showed.
+        self._compaction_drain_pending: bool = False
 
     def _is_at_bottom(self) -> bool:
         max_scroll = self._chat.max_scroll_y
@@ -158,6 +178,8 @@ class ChatDisplay:
         self._tool_widgets.clear()
         self._tool_call_content.clear()
         self._last_progress_update.clear()
+        self._active_compaction = None
+        self._compaction_drain_pending = False
 
     def next_msg_id(self) -> str:
         self._msg_counter += 1
@@ -435,67 +457,110 @@ class ChatDisplay:
                     "dim",
                 )
         elif isinstance(event, CompactionStart):
-            self._active_compaction = {
-                "dropped": event.dropped_message_count,
-                "keep_recent": event.keep_recent,
-                "prompt_tokens": event.prompt_tokens,
-                "preview": "",
-                "summary_chars": 0,
-                "started_at": time.time(),
-            }
-            self.say(
-                f"  \U0001f5dc Compressing {event.dropped_message_count} "
-                f"messages \u2192 keep last {event.keep_recent} "
-                f"(trigger: {event.prompt_tokens} prompt tokens)",
-                "bold bright_cyan",
+            # Mount a single CompactionMsg widget for the whole fold.
+            # The widget's live state shows a status line that updates
+            # in place; the final summary is rendered exactly once when
+            # the matching CompactionEnd fires.
+            existing = len(event.existing_summary) if event.existing_summary else 0
+            mid = self.next_msg_id()
+            w = CompactionMsg(id=mid)
+            w.start(
+                dropped=event.dropped_message_count,
+                keep_recent=event.keep_recent,
+                prompt_tokens=event.prompt_tokens,
+                existing_summary_chars=existing,
             )
+            self._active_compaction = _CompactionWidgetState(widget=w)
+            at_bottom = self._is_at_bottom()
+            self._chat.mount(w)
+            if at_bottom:
+                w.scroll_visible()
+                self._chat.call_after_refresh(self._chat.scroll_end, animate=False)
         elif isinstance(event, CompactionChunk):
-            preview = event.accumulated
-            if len(preview) > 200:
-                preview = preview[:197] + "\u2026"
-            self.say(
-                f"      \u2588 {preview}",
-                "dim cyan",
-            )
-            if hasattr(self, "_active_compaction") and self._active_compaction:
-                self._active_compaction["summary_chars"] = len(event.accumulated)
+            # Just feed the delta into the active widget — it
+            # updates the live char counter in place. We do NOT
+            # print the chunk text here, because every chunk
+            # being printed as a separate line is the ugly
+            # behaviour this widget replaces.
+            state = self._active_compaction
+            if state is not None:
+                state.widget.accumulate(event.delta)
         elif isinstance(event, CompactionEnd):
-            err = event.error
-            if err is not None:
-                self.say(
-                    f"  \u26a0 Compaction failed: {err}",
-                    "bold #f38ba8",
-                )
+            state = self._active_compaction
+            if state is None:
+                # Defensive: stray CompactionEnd without a start.
+                # Render a one-shot widget so the user is not blind
+                # to what just happened.
+                mid = self.next_msg_id()
+                w = CompactionMsg(id=mid)
+                if event.error is not None:
+                    w.fail(event.error, event.duration)
+                else:
+                    w.finish(
+                        event.summary,
+                        event.duration,
+                        event.dropped_message_count,
+                    )
+                self._chat.mount(w)
+                return
+            if event.error is not None:
+                state.widget.fail(event.error, event.duration)
             else:
-                self.say(
-                    f"  \u2713 Compaction done in {_format_duration(event.duration)} "
-                    f"\u2014 summary {len(event.summary)} chars, "
-                    f"{event.dropped_message_count} msgs folded",
-                    "bright_green",
+                state.widget.finish(
+                    event.summary,
+                    event.duration,
+                    event.dropped_message_count,
                 )
-            if hasattr(self, "_active_compaction"):
-                self._active_compaction = None
+            # The CompactionMsg widget already rendered the final
+            # summary once. Mark the trailing MessageEvent to be
+            # drained as a no-op so it does not mount a *second*
+            # widget for the same fold.
+            if state.widget.summary_text:
+                self._export.add(
+                    ExportEntry(
+                        text=state.widget.summary_text,
+                        is_markdown=False,
+                        style="bright_cyan",
+                    )
+                )
+                self._compaction_drain_pending = True
+            self._active_compaction = None
         elif isinstance(event, MessageEvent):
             m = event.message
             role = m.get("role", "?")
             if role == "compaction":
-                # A compacted summary, stored as a CompactionMessage in
-                # the session log. get_forward_messages() re-projects
-                # these to role="assistant" for the LLM, but on the
-                # frontend we render them with the 📼 marker so the user
-                # sees they were produced by a compaction, not by the
-                # LLM itself.
+                # The CompactionMsg widget already rendered the
+                # final summary when CompactionEnd fired. The
+                # MessageEvent is just a persistence-side
+                # notification, not a display request — avoid
+                # double-rendering the same content.
+                if self._active_compaction is not None:
+                    return
+                if self._compaction_drain_pending:
+                    # Trailing MessageEvent for the most recent
+                    # live compaction; consume the flag and skip.
+                    self._compaction_drain_pending = False
+                    return
+                # Replay path: no live widget to update, so
+                # render a one-shot finished CompactionMsg.
                 content = m.get("content", "")
                 meta = m.get("meta") or {}
                 if isinstance(content, str) and content:
-                    dropped = meta.get("dropped_count", 0)
-                    label = (
-                        f"  \U0001f4dc Folded summary ({len(content)} chars"
-                        + (f", {dropped} msgs" if dropped else "")
-                        + "):"
+                    mid = self.next_msg_id()
+                    w = CompactionMsg(id=mid)
+                    w.finish(
+                        summary=content,
+                        duration=float((meta or {}).get("duration", 0.0) or 0.0),
+                        dropped=int((meta or {}).get("dropped_count", 0) or 0),
                     )
-                    self.say(label, "bold bright_cyan")
-                    self.say(content, is_markdown=True)
+                    self._chat.mount(w)
+                    self._export.add(
+                        ExportEntry(
+                            text=content,
+                            is_markdown=False,
+                            style="bright_cyan",
+                        )
+                    )
         elif isinstance(event, ExecutionStart):
             pass
         elif isinstance(event, ToolStart):

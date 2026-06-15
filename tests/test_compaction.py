@@ -23,6 +23,119 @@ from minimal_harness.types import (
 )
 
 
+class _WidgetHostApp:
+    """Lightweight App context wrapper — CompactionMsg calls
+    ``self.update(...)`` which needs an active Textual app. We use
+    ``App.run_test()`` to provide that context without spinning up
+    the full TUI. Falls back to constructing the widget directly when
+    the tests only inspect state, because the render path is exercised
+    by the display-level tests that already run inside an app context
+    via the MagicMock chat container.
+    """
+
+
+def test_compaction_msg_widget_phases() -> None:
+    """The CompactionMsg widget goes through pending → live → done.
+    Each phase renders a distinct Text, and accumulate() in the live
+    phase updates the char counter without exposing the chunk text.
+    """
+    from textual.app import App
+
+    from mh_tui.chat_widgets import CompactionMsg
+
+    class _Host(App):
+        pass
+
+    async def _drive() -> None:
+        app = _Host()
+        async with app.run_test() as pilot:
+            w = CompactionMsg()
+            await pilot.app.mount(w)
+            assert w.phase == "pending"
+            assert w.summary_text == ""
+
+            w.start(
+                dropped=4,
+                keep_recent=2,
+                prompt_tokens=1200,
+                existing_summary_chars=50,
+            )
+            assert w.phase == "live"
+            assert w.dropped_count == 4
+
+            w.accumulate("alpha")
+            w.accumulate(" beta")
+            assert w.phase == "live"
+            assert w.summary_text == ""
+
+            w.finish(summary="alpha beta", duration=0.42, dropped=4)
+            assert w.phase == "done"
+            assert w.summary_text == "alpha beta"
+            assert w.dropped_count == 4
+
+    import asyncio
+
+    asyncio.run(_drive())
+
+
+def test_compaction_msg_widget_failure() -> None:
+    """CompactionMsg.fail() transitions to the failed phase, with the
+    error stored for the error block. summary_text stays empty so the
+    display layer does not export a phantom summary on failure.
+    """
+    from textual.app import App
+
+    from mh_tui.chat_widgets import CompactionMsg
+
+    class _Host(App):
+        pass
+
+    async def _drive() -> None:
+        app = _Host()
+        async with app.run_test() as pilot:
+            w = CompactionMsg()
+            await pilot.app.mount(w)
+            w.start(dropped=4, keep_recent=0, prompt_tokens=900)
+            w.fail(error="RuntimeError: summarizer blew up", duration=0.05)
+            assert w.phase == "failed"
+            assert w.summary_text == ""
+
+    import asyncio
+
+    asyncio.run(_drive())
+
+
+def test_compaction_msg_widget_stray_accumulate_is_noop() -> None:
+    """Calling accumulate() before start() or after finish()/fail()
+    is a no-op — the widget silently drops the call rather than
+    resurrecting itself or corrupting the final state.
+    """
+    from textual.app import App
+
+    from mh_tui.chat_widgets import CompactionMsg
+
+    class _Host(App):
+        pass
+
+    async def _drive() -> None:
+        app = _Host()
+        async with app.run_test() as pilot:
+            w = CompactionMsg()
+            await pilot.app.mount(w)
+            w.accumulate("orphan")  # no start yet — no-op
+            assert w.phase == "pending"
+
+            w.start(dropped=2, keep_recent=0, prompt_tokens=200)
+            w.finish(summary="ok", duration=0.1, dropped=2)
+            w.accumulate("after-finish")  # post-finish — no-op
+            assert w.phase == "done"
+            assert w.summary_text == "ok"
+
+    import asyncio
+
+    asyncio.run(_drive())
+
+
 class _NoopLLMProvider:
     """An LLMProvider that yields nothing — used to construct agents
     for metadata-only tests (we never call chat() on it)."""
@@ -127,42 +240,174 @@ def test_make_llm_summarizer_signature() -> None:
     assert asyncio.iscoroutine(result) or hasattr(result, "__aiter__")
 
 
-def test_compaction_summary_message_event_renders_in_display() -> None:
-    """The TUI display must render the compaction MessageEvent (the
+def test_compaction_summary_message_event_renders_via_widget() -> None:
+    """The TUI display must render the compaction ``MessageEvent`` (the
     synthetic CompactionMessage emitted after a successful compaction)
-    so the user can read it and so it persists in the session for replay.
+    so the user can read it and so it persists in the session for
+    replay.
+
+    With the CompactionMsg widget, the rendering path is:
+
+    * Live flow: CompactionStart → *CompactionChunk → CompactionEnd
+      transitions the widget through pending → live → done. The
+      trailing MessageEvent(role="compaction") is intentionally
+      dropped on the live path to avoid double-rendering the
+      summary.
+    * Replay path (no live widget active): a fresh CompactionMsg
+      is mounted directly in the done state, with the persisted
+      summary body shown once.
     """
     from unittest.mock import MagicMock, patch
 
-    from minimal_harness.types import MessageEvent
+    from minimal_harness.types import (
+        CompactionEnd,
+        CompactionStart,
+        MessageEvent,
+    )
 
+    from mh_tui.chat_widgets import CompactionMsg
     from mh_tui.display import ChatDisplay
 
+    # ── Live path: a CompactionEnd already finished the widget,
+    # so the trailing MessageEvent must be a no-op for chat content.
     chat = MagicMock()
     d = ChatDisplay(chat_container=chat, theme="tokyo-night")
+    with patch.object(d, "_is_at_bottom", return_value=True):
+        d.handle_event(
+            CompactionStart(
+                dropped_message_count=4,
+                existing_summary=None,
+                keep_recent=0,
+                prompt_tokens=512,
+            ),
+            buf=MagicMock(),
+        )
+        # Active widget is mounted; render is via the widget, not say().
+        d.handle_event(
+            CompactionEnd(
+                summary="Goal: ship it. Done: 1/3.",
+                dropped_message_count=4,
+                new_offset=0,
+                duration=0.42,
+                error=None,
+            ),
+            buf=MagicMock(),
+        )
+        # The widget must be in "done" phase and show the summary.
+        assert d._active_compaction is None
+        w = chat.mount.call_args_list[-1].args[0]
+        assert isinstance(w, CompactionMsg)
+        assert w.phase == "done"
+        assert w.summary_text == "Goal: ship it. Done: 1/3."
 
-    # Replace say() with a mock so we can inspect the calls.
-    with (
-        patch.object(d, "say", MagicMock()) as say_mock,
-        patch.object(d, "_is_at_bottom", return_value=True),
-    ):
+        # The trailing MessageEvent must not mount a *second* widget
+        # (that would render the same summary twice).
+        mount_calls_before = chat.mount.call_count
         d.handle_event(
             MessageEvent(
                 message={
                     "role": "compaction",
                     "content": "Goal: ship it. Done: 1/3.",
-                    "meta": {"dropped_count": 14, "keep_recent": 6},
+                    "meta": {"dropped_count": 4, "keep_recent": 0},
                 }
             ),
             buf=MagicMock(),
         )
+        assert chat.mount.call_count == mount_calls_before
 
-    # Two say() calls expected: the heading and the markdown body.
-    assert say_mock.call_count >= 2
-    say_args = " ".join(str(call.args[0]) for call in say_mock.call_args_list)
-    assert "Folded summary" in say_args
-    assert "Goal: ship it" in say_args
-    assert "Goal: ship it" in say_args
+    # ── Replay path: no live widget active, the MessageEvent
+    # mounts a fresh one-shot done CompactionMsg.
+    chat2 = MagicMock()
+    d2 = ChatDisplay(chat_container=chat2, theme="tokyo-night")
+    with patch.object(d2, "_is_at_bottom", return_value=True):
+        d2.handle_event(
+            MessageEvent(
+                message={
+                    "role": "compaction",
+                    "content": "Replayed summary text.",
+                    "meta": {"dropped_count": 7, "keep_recent": 4, "duration": 1.2},
+                }
+            ),
+            buf=MagicMock(),
+        )
+    w = chat2.mount.call_args_list[-1].args[0]
+    assert isinstance(w, CompactionMsg)
+    assert w.phase == "done"
+    assert w.summary_text == "Replayed summary text."
+    assert w.dropped_count == 7
+
+
+def test_compaction_live_does_not_print_chunk_text() -> None:
+    """The whole point of the widget is that streaming chunks are
+    not printed as separate lines. Verify the live event flow
+    produces exactly one mount call (the widget), with the chunk
+    delta only feeding the widget's character counter.
+    """
+    from unittest.mock import MagicMock, patch
+
+    from minimal_harness.types import (
+        CompactionChunk,
+        CompactionEnd,
+        CompactionStart,
+    )
+
+    from mh_tui.chat_widgets import CompactionMsg
+    from mh_tui.display import ChatDisplay
+
+    chat = MagicMock()
+    d = ChatDisplay(chat_container=chat, theme="tokyo-night")
+    with (
+        patch.object(d, "_is_at_bottom", return_value=True),
+        patch.object(d, "say", MagicMock()) as say_mock,
+    ):
+        d.handle_event(
+            CompactionStart(
+                dropped_message_count=10,
+                existing_summary="prior-summary",
+                keep_recent=4,
+                prompt_tokens=4200,
+            ),
+            buf=MagicMock(),
+        )
+        # Three streaming chunks, mimicking the verify_compaction.py
+        # scenario where each yields a small piece.
+        d.handle_event(
+            CompactionChunk(delta="alpha", accumulated="alpha"), buf=MagicMock()
+        )
+        d.handle_event(
+            CompactionChunk(delta=" beta", accumulated="alpha beta"),
+            buf=MagicMock(),
+        )
+        d.handle_event(
+            CompactionChunk(delta=" gamma", accumulated="alpha beta gamma"),
+            buf=MagicMock(),
+        )
+        d.handle_event(
+            CompactionEnd(
+                summary="alpha beta gamma",
+                dropped_message_count=10,
+                new_offset=0,
+                duration=0.13,
+                error=None,
+            ),
+            buf=MagicMock(),
+        )
+
+    # say() must NEVER be called for the live path — the widget owns
+    # the rendering.
+    assert say_mock.call_count == 0
+    # Exactly one CompactionMsg widget was mounted.
+    compaction_mounts = [
+        c.args[0]
+        for c in chat.mount.call_args_list
+        if isinstance(c.args[0], CompactionMsg)
+    ]
+    assert len(compaction_mounts) == 1
+    w = compaction_mounts[0]
+    assert w.phase == "done"
+    assert w.summary_text == "alpha beta gamma"
+    # Existing-summary hint is preserved through the live phase.
+    assert w.dropped_count == 10
 
 
 def test_managed_session_implements_compact() -> None:

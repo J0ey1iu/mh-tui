@@ -29,7 +29,7 @@ class TestExtractUserInputs:
     def test_extracts_user_text(self):
         manager, _, _ = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "system", "content": "prompt"},
             {"role": "user", "content": [{"type": "text", "text": "hello there"}]},
             {"role": "user", "content": [{"type": "text", "text": "second msg"}]},
@@ -40,7 +40,7 @@ class TestExtractUserInputs:
     def test_skips_non_text_parts(self):
         manager, _, _ = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {
                 "role": "user",
                 "content": [
@@ -55,7 +55,7 @@ class TestExtractUserInputs:
     def test_skips_empty_text(self):
         manager, _, _ = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "user", "content": [{"type": "text", "text": ""}]}
         ]
         result = manager._extract_user_inputs(memory)
@@ -64,7 +64,7 @@ class TestExtractUserInputs:
     def test_returns_empty_when_no_user_messages(self):
         manager, _, _ = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "system", "content": "prompt"},
             {"role": "assistant", "content": "hello"},
         ]
@@ -76,7 +76,7 @@ class TestReplayMemory:
     def test_skips_system(self):
         manager, _, display = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "system", "content": "prompt"},
             {"role": "user", "content": [{"type": "text", "text": "hi"}]},
         ]
@@ -86,7 +86,7 @@ class TestReplayMemory:
     def test_replays_user(self):
         manager, _, display = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "user", "content": [{"type": "text", "text": "hello"}]}
         ]
         manager._replay_memory(memory)
@@ -95,7 +95,7 @@ class TestReplayMemory:
     def test_replays_assistant_text(self):
         manager, _, display = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "assistant", "content": "I am an AI."}
         ]
         manager._replay_memory(memory)
@@ -104,7 +104,7 @@ class TestReplayMemory:
     def test_replays_assistant_tool_calls(self):
         manager, _, display = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {
                 "role": "assistant",
                 "content": "",
@@ -119,7 +119,7 @@ class TestReplayMemory:
     def test_replays_reasoning(self):
         manager, _, display = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "reasoning", "content": "thinking step..."}
         ]
         manager._replay_memory(memory)
@@ -128,7 +128,7 @@ class TestReplayMemory:
     def test_replays_tool_error(self):
         manager, _, display = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "tool", "content": "[Tool Error] Something broke"}
         ]
         manager._replay_memory(memory)
@@ -137,7 +137,7 @@ class TestReplayMemory:
     def test_replays_tool_success_result(self):
         manager, _, display = _make_manager()
         memory = MagicMock()
-        memory.get_all_messages.return_value = [
+        memory.get_replay_messages.return_value = [
             {"role": "tool", "content": '{"result": "ok"}'}
         ]
         manager._replay_memory(memory)

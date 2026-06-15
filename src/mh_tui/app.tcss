@@ -79,6 +79,12 @@ ToolResultMsg {
     padding: 0 1;
 }
 
+CompactionMsg {
+    border: round $primary 50%;
+    padding: 0 1;
+    margin: 1 0;
+}
+
 HandoffWidget {
     border: round $warning;
     padding: 0 1;

@@ -8,12 +8,13 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from minimal_harness.agent.registry import AgentRegistryProtocol
 from minimal_harness.agent.runtime import AgentRuntimeProtocol
+from minimal_harness.types import AgentEnd
+
 from mh_tui.agent_manager import AgentManager
 from mh_tui.buffer import StreamBuffer
 from mh_tui.context import AppContext
 from mh_tui.runtime_session import ConversationSession, SessionStatus
 from mh_tui.session_factory import SessionFactory
-from minimal_harness.types import AgentEnd
 
 if TYPE_CHECKING:
     from minimal_harness.types import AgentEvent, ToolMetadata
@@ -338,7 +339,7 @@ class SessionController:
             session_obj = await self._ctx.session_store.get_session(s.session.memory_id)
             title = session_obj.title if session_obj else None
             created_at = session_obj.created_at if session_obj else ""
-            msg_count = len(session_obj.get_all_messages()) if session_obj else 0
+            msg_count = len(session_obj.get_replay_messages()) if session_obj else 0
             if msg_count == 0:
                 continue
             memory_sessions.append(

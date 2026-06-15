@@ -5,19 +5,21 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from minimal_harness.types import ToolResult
 from rich.text import Text
 
+from mh_tui.chat_widgets import CompactionMsg
 from mh_tui.context import AppContext
 from mh_tui.display import ChatDisplay
 from mh_tui.renderer import (
     format_tool_call_static,
     format_tool_result_static,
 )
-from minimal_harness.types import ToolResult
 
 if TYPE_CHECKING:
-    from mh_tui.runtime_session import ConversationSession
     from minimal_harness.memory import Memory
+
+    from mh_tui.runtime_session import ConversationSession
 
 
 class SessionReplayer:
@@ -74,7 +76,7 @@ class SessionReplayer:
     def _extract_user_inputs(memory: Memory) -> list[str]:
         inputs: list[str] = []
         try:
-            for msg in memory.get_all_messages():
+            for msg in memory.get_replay_messages():
                 if msg.get("role") == "user":
                     parts = msg.get("content")
                     if isinstance(parts, list):
@@ -91,7 +93,7 @@ class SessionReplayer:
         return inputs
 
     def _replay_memory(self, memory: Memory) -> None:
-        messages = memory.get_all_messages()
+        messages = memory.get_replay_messages()
 
         for msg in messages:
             try:
@@ -126,6 +128,18 @@ class SessionReplayer:
                     content = msg.get("content")
                     if isinstance(content, str) and content:
                         self._display.say_reasoning(content)
+                elif role == "compaction":
+                    content = msg.get("content", "")
+                    meta = msg.get("meta") or {}
+                    if isinstance(content, str) and content:
+                        chat = self._display.chat_container
+                        w = CompactionMsg()
+                        w._phase = "done"
+                        w._summary = content
+                        w._duration = float(meta.get("duration", 0.0) or 0.0)
+                        w._dropped = int(meta.get("dropped_count", 0) or 0)
+                        w._accumulated_chars = len(content)
+                        chat.mount(w)
                 elif role == "tool":
                     content = msg.get("content")
                     if not isinstance(content, str):

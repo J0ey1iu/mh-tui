@@ -209,7 +209,7 @@ class JsonlSessionStore(SessionStoreProtocol):
             existing = data.get("extra", {})
             merged_extra = {**existing, **(extra or {})}
             data["extra"] = merged_extra
-            msg_count = len(data.get("messages", []))
+            msg_count = len(data.get("replay_messages", data.get("messages", [])))
 
             path = self._session_path(session_id)
             tmp = path.with_suffix(".json.tmp")
@@ -232,7 +232,9 @@ class JsonlSessionStore(SessionStoreProtocol):
             await self._save_index()
 
             last_role = (
-                data["messages"][-1].get("role", "?")
+                data["replay_messages"][-1].get("role", "?")
+                if data.get("replay_messages")
+                else data["messages"][-1].get("role", "?")
                 if data.get("messages")
                 else "empty"
             )
@@ -312,7 +314,7 @@ class JsonlSessionStore(SessionStoreProtocol):
     @staticmethod
     def get_messages_as_items(session: Session) -> list[dict]:
         items: list[dict] = []
-        for i, msg in enumerate(session.get_all_messages()):
+        for i, msg in enumerate(session.get_replay_messages()):
             role = msg.get("role", "")
             content = msg.get("content", "")
             if isinstance(content, list):
@@ -482,6 +484,9 @@ class JsonlManagedSession:
 
     def get_forward_messages(self) -> list[Message]:
         return self._inner.get_forward_messages()
+
+    def get_replay_messages(self) -> list[Message]:
+        return self._inner.get_replay_messages()
 
     def clear_messages(self) -> None:
         logger.debug("managed.clear_messages id=%s", self._session_id)

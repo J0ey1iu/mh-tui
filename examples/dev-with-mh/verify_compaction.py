@@ -324,6 +324,7 @@ async def scenario_over_threshold() -> None:
     for i in range(6):
         await memory.add_message(_user(f"q{i}"))
         await memory.add_message(_assistant(f"a{i}"))
+    memory.set_message_usage({"prompt_tokens": 9200, "completion_tokens": 0, "total_tokens": 9200})
 
     events: list[AgentEvent] = []
     async for evt in agent.run(
@@ -441,6 +442,7 @@ async def scenario_repeated_compaction() -> None:
     for i in range(20):
         await memory.add_message(_user(f"q{i}"))
         await memory.add_message(_assistant(f"a{i}"))
+    memory.set_message_usage({"prompt_tokens": 9000, "completion_tokens": 0, "total_tokens": 9000})
 
     events: list[AgentEvent] = []
     async for evt in agent.run(
@@ -515,6 +517,7 @@ async def scenario_compaction_failure() -> None:
     for i in range(6):
         await memory.add_message(_user(f"q{i}"))
         await memory.add_message(_assistant(f"a{i}"))
+    memory.set_message_usage({"prompt_tokens": 9000, "completion_tokens": 0, "total_tokens": 9000})
     # Snapshot taken right before agent.run — the agent itself will
     # add the user_input message at the top of run(), which is *expected*
     # and not part of the test invariant.
@@ -643,6 +646,7 @@ async def scenario_assistant_folded_by_same_turn_compaction() -> None:
     for i in range(4):
         await memory.add_message(_user(f"q{i}"))
         await memory.add_message(_assistant(f"a{i}"))
+    memory.set_message_usage({"prompt_tokens": 9000, "completion_tokens": 0, "total_tokens": 9000})
 
     from minimal_harness.types import (
         AgentEnd,
