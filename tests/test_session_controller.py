@@ -4,12 +4,11 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from minimal_harness.agent.registry import AgentRegistry
-from minimal_harness.agent.runtime import AgentRuntime
 from mh_tui.buffer import StreamBuffer
 from mh_tui.context import AppContext
 from mh_tui.session_controller import SessionController
+from minimal_harness.agent.registry import AgentRegistry
+from minimal_harness.agent.runtime import AgentRuntime
 
 
 @pytest.fixture

@@ -1,8 +1,6 @@
 """Smoke tests for the built-in tools (bash, local file operation)."""
 
 import pytest
-from minimal_harness.types import LocalToolBinding, ToolMetadata
-
 from mh_tui.built_in import (
     bash_tool,
     collect_builtin_tools,
@@ -10,6 +8,7 @@ from mh_tui.built_in import (
     get_tools,
     local_file_operation_tool,
 )
+from minimal_harness.types import LocalToolBinding, ToolMetadata
 
 
 def test_get_tools_returns_both():

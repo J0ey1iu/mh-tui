@@ -5,9 +5,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from minimal_harness.tool.base import StreamingTool
-from minimal_harness.tool.registry import ToolRegistry
-
 from mh_tui.config import (
     DEFAULT_CONFIG,
     add_model,
@@ -20,6 +17,8 @@ from mh_tui.config import (
     save_config,
     save_models,
 )
+from minimal_harness.tool.base import StreamingTool
+from minimal_harness.tool.registry import ToolRegistry
 
 
 def _patch_config_dir(monkeypatch, base: Path) -> None:

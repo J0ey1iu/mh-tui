@@ -21,7 +21,11 @@ import json
 from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from minimal_harness.memory import Message
-from minimal_harness.types import CompactionConfig, CompactionSummarizer
+from minimal_harness.types import (
+    CompactionConfig,
+    CompactionSettings,
+    CompactionSummarizer,
+)
 
 if TYPE_CHECKING:
     from minimal_harness.agent.middleware import Middleware
@@ -108,14 +112,37 @@ _DEFAULT_THRESHOLD = 8000
 _DEFAULT_KEEP_RECENT = 6
 
 
+def compaction_settings_or_defaults(
+    settings: CompactionSettings | None,
+) -> CompactionSettings:
+    """Return ``settings`` with defaults filled in for any missing key.
+
+    Reads from the optional ``CompactionSettings`` TypedDict and
+    produces a fully populated copy. Used by the TUI factory and the
+    ``/compact`` slash action to keep their default-handling in one
+    place.
+    """
+    if settings is None:
+        return {
+            "prompt_token_threshold": _DEFAULT_THRESHOLD,
+            "keep_recent": _DEFAULT_KEEP_RECENT,
+        }
+    return {
+        "prompt_token_threshold": int(
+            settings.get("prompt_token_threshold", _DEFAULT_THRESHOLD)
+        ),
+        "keep_recent": int(settings.get("keep_recent", _DEFAULT_KEEP_RECENT)),
+    }
+
+
 class TUICompactingAgentFactory:
     """LocalAgentFactory for ``agent_type="compacting"`` agents.
 
-    Reads per-agent parameters from ``AgentMetadata.compaction`` (a dict
-    with optional ``prompt_token_threshold`` and ``keep_recent`` keys)
-    and builds a :class:`CompactionConfig` using
-    :func:`make_llm_summarizer` against the LLM provider supplied at
-    agent-creation time.
+    Reads per-agent parameters from ``AgentMetadata.compaction`` (a
+    :class:`CompactionSettings` TypedDict with optional
+    ``prompt_token_threshold`` and ``keep_recent`` keys) and builds a
+    :class:`CompactionConfig` using :func:`make_llm_summarizer`
+    against the LLM provider supplied at agent-creation time.
 
     Register with the TUI runtime either at construction time
     (``AgentRuntime(local_agent_factories={"compacting": TUICompactingAgentFactory()})``)
@@ -131,20 +158,22 @@ class TUICompactingAgentFactory:
     ) -> Any:
         from minimal_harness.agent.compacting import CompactionAgent
 
-        params: dict[str, Any] = metadata.compaction or {}
-        threshold = int(params.get("prompt_token_threshold", _DEFAULT_THRESHOLD))
-        keep_recent = int(params.get("keep_recent", _DEFAULT_KEEP_RECENT))
+        config: CompactionConfig | None = kwargs.get("compaction_config")
+        if config is not None:
+            threshold = config.prompt_token_threshold
+            keep_recent = config.keep_recent
+            summarizer = config.summarizer
+        else:
+            settings = compaction_settings_or_defaults(metadata.compaction)
+            threshold = int(settings.get("prompt_token_threshold", 8000))
+            keep_recent = int(settings.get("keep_recent", 6))
+            summarizer = make_llm_summarizer(llm_provider)
 
-        config = CompactionConfig(
-            summarizer=make_llm_summarizer(llm_provider),
-            prompt_token_threshold=threshold,
-            keep_recent=keep_recent,
-        )
         return CompactionAgent(
             llm_provider=llm_provider,
-            summarizer=config.summarizer,
-            prompt_token_threshold=config.prompt_token_threshold,
-            keep_recent=config.keep_recent,
+            summarizer=summarizer,
+            prompt_token_threshold=threshold,
+            keep_recent=keep_recent,
             max_iterations=kwargs.get("max_iterations", 100),
             middleware=middleware,
             emit_message_events=kwargs.get("emit_message_events", True),

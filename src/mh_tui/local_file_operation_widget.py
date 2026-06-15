@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from minimal_harness.types import ToolResult
 from rich.text import Text
 
 from mh_tui.chat_widgets import ChatMsg
 from mh_tui.tool_widget_provider import ToolWidgetProvider
-from minimal_harness.types import ToolResult
 
 _MAX_CONTENT_LINES = 60
 _MAX_LINE_LENGTH = 200

@@ -39,9 +39,8 @@ def test_compaction_msg_widget_phases() -> None:
     Each phase renders a distinct Text, and accumulate() in the live
     phase updates the char counter without exposing the chunk text.
     """
-    from textual.app import App
-
     from mh_tui.chat_widgets import CompactionMsg
+    from textual.app import App
 
     class _Host(App):
         pass
@@ -83,9 +82,8 @@ def test_compaction_msg_widget_failure() -> None:
     error stored for the error block. summary_text stays empty so the
     display layer does not export a phantom summary on failure.
     """
-    from textual.app import App
-
     from mh_tui.chat_widgets import CompactionMsg
+    from textual.app import App
 
     class _Host(App):
         pass
@@ -110,9 +108,8 @@ def test_compaction_msg_widget_stray_accumulate_is_noop() -> None:
     is a no-op — the widget silently drops the call rather than
     resurrecting itself or corrupting the final state.
     """
-    from textual.app import App
-
     from mh_tui.chat_widgets import CompactionMsg
+    from textual.app import App
 
     class _Host(App):
         pass
@@ -259,14 +256,13 @@ def test_compaction_summary_message_event_renders_via_widget() -> None:
     """
     from unittest.mock import MagicMock, patch
 
+    from mh_tui.chat_widgets import CompactionMsg
+    from mh_tui.display import ChatDisplay
     from minimal_harness.types import (
         CompactionEnd,
         CompactionStart,
         MessageEvent,
     )
-
-    from mh_tui.chat_widgets import CompactionMsg
-    from mh_tui.display import ChatDisplay
 
     # ── Live path: a CompactionEnd already finished the widget,
     # so the trailing MessageEvent must be a no-op for chat content.
@@ -345,14 +341,13 @@ def test_compaction_live_does_not_print_chunk_text() -> None:
     """
     from unittest.mock import MagicMock, patch
 
+    from mh_tui.chat_widgets import CompactionMsg
+    from mh_tui.display import ChatDisplay
     from minimal_harness.types import (
         CompactionChunk,
         CompactionEnd,
         CompactionStart,
     )
-
-    from mh_tui.chat_widgets import CompactionMsg
-    from mh_tui.display import ChatDisplay
 
     chat = MagicMock()
     d = ChatDisplay(chat_container=chat, theme="tokyo-night")
@@ -429,12 +424,11 @@ def test_managed_session_implements_compact() -> None:
     from pathlib import Path
     from unittest.mock import MagicMock
 
-    from minimal_harness.memory import ConversationMemory
-
     from mh_tui.jsonl_session_store import (
         JsonlManagedSession,
         JsonlSessionStore,
     )
+    from minimal_harness.memory import ConversationMemory
 
     with tempfile.TemporaryDirectory() as tmp:
         store = JsonlSessionStore(Path(tmp))

@@ -539,14 +539,16 @@ async def scenario_compaction_failure() -> None:
 
     agent_ends = [e for e in events if isinstance(e, AgentEnd)]
     assert len(agent_ends) == 1
-    assert agent_ends[0].error is not None
-    assert "Compaction failed" in agent_ends[0].error
+    # Soft-fail: AgentEnd.error must be None (the run succeeded; the
+    # compaction error is surfaced via CompactionEnd only).
+    assert agent_ends[0].error is None
+    assert agent_ends[0].response == "ok"
 
     # Invariant: failed compaction must not have applied its fold. The
     # only allowed mutations past this point are the user_input message
     # the agent added at the start of run() and the assistant message
-    # recorded AFTER the deferred raise (so the LLM's response is
-    # preserved for the next turn and the frontend gets to see it).
+    # recorded after the soft-fail (so the LLM's response is preserved
+    # for the next turn and the frontend gets to see it).
     msgs_after = [dict(m) for m in memory.get_all_messages()]
     expected = msgs_before_run + [
         {"role": "user", "content": [{"type": "text", "text": "go"}]},
@@ -577,7 +579,7 @@ async def scenario_compaction_failure() -> None:
     assert assistant_events[0].message.get("content") == "ok"
     # Order check: msg.assistant is the primary content and comes
     # first, then the compact events (housekeeping), then agent.end
-    # (terminal error). Frontend renders the LLM's reply before the
+    # (success). Frontend renders the LLM's reply before the
     # compact error block.
     assistant_idx = next(
         i
@@ -592,7 +594,7 @@ async def scenario_compaction_failure() -> None:
         f"event order wrong: assistant={assistant_idx} "
         f"compact_end={compaction_end_idx} agent_end={agent_end_idx}"
     )
-    print("  ✓ CompactionEnd.error set, AgentEnd.error wraps it")
+    print("  ✓ CompactionEnd.error set, AgentEnd succeeds (soft-fail)")
     print("  ✓ memory buffer: no summary, but assistant turn IS recorded")
     print("  ✓ MessageEvent(assistant) emitted BEFORE compact events")
     print("  ✓ event order: [msg.assistant, compact.start/chunk/end, agent.end]")

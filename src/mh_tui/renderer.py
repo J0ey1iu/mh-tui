@@ -5,9 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from rich.text import Text
-
 from minimal_harness.types import ToolResult
+from rich.text import Text
 
 from .constants import MAX_DISPLAY_LENGTH
 

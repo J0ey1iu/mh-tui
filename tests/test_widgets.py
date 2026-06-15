@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from textual.events import Key
-
 from mh_tui.widgets import (
     ChatInput,
     ChatInputDump,
@@ -14,6 +12,7 @@ from mh_tui.widgets import (
     SlashCommandSelect,
     SlashCommandShow,
 )
+from textual.events import Key
 
 
 def _make_chat_input(text: str = "") -> tuple[ChatInput, MagicMock]:

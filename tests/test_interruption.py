@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import MagicMock
 
-from minimal_harness.agent.registry import AgentRegistry
 from mh_tui.buffer import StreamBuffer
 from mh_tui.context import AppContext
 from mh_tui.session_controller import SessionController
+from minimal_harness.agent.registry import AgentRegistry
 from minimal_harness.types import LLMChunkDelta
 
 # -- SessionController interruption ------------------------------------------

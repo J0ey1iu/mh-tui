@@ -497,6 +497,10 @@ class JsonlManagedSession:
         self._inner.set_message_usage(usage)
         self._schedule_save()
 
+    def reset_message_usage(self) -> None:
+        self._inner.reset_message_usage()
+        self._schedule_save()
+
     def get_message_usage(self) -> TokenUsage:
         return self._inner.get_message_usage()
 

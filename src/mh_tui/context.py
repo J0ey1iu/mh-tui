@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from minimal_harness.types import ExtraHeadersProvider, ToolMetadata
 
+from minimal_harness.llm import LLMProvider, create_llm_provider
+from minimal_harness.tool.registry import ToolRegistry
+
 from mh_tui.config import (
     add_model,
     collect_tools,
@@ -14,8 +17,6 @@ from mh_tui.config import (
     save_config,
 )
 from mh_tui.jsonl_session_store import JsonlSessionStore
-from minimal_harness.llm import LLMProvider, create_llm_provider
-from minimal_harness.tool.registry import ToolRegistry
 
 
 class TUIConfig:

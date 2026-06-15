@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, PropertyMock
 
-from textual.containers import VerticalScroll
-
 from mh_tui.buffer import StreamBuffer
 from mh_tui.display import ChatDisplay, ExportEntry
 from minimal_harness.types import (
@@ -16,6 +14,7 @@ from minimal_harness.types import (
     ToolEnd,
     ToolProgress,
 )
+from textual.containers import VerticalScroll
 
 
 def _make_mock_chat() -> MagicMock:

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from textual.widgets import Static
-
 from mh_tui.chat_widgets import (
     AssistantMsg,
     ChatMsg,
@@ -10,6 +8,7 @@ from mh_tui.chat_widgets import (
     ToolResultMsg,
     UserMsg,
 )
+from textual.widgets import Static
 
 
 class TestChatMsg:
