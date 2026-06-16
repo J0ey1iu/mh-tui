@@ -1,5 +1,9 @@
 # Change log
 
+## 0.1.0a1
+
+- chore: bump `minimal-harness` dependency constraint to `>=0.7.0a1` for pre-release alignment
+
 ## 0.2.0 (unreleased)
 
 - refactor(compact): merge `/compact` slash command with the

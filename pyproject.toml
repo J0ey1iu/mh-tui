@@ -1,6 +1,6 @@
 [project]
 name = "mh-tui"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "Terminal UI client for minimal-harness. The local-running counterpart of mh-orchestration-service."
 readme = "README.md"
 authors = [
@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "minimal-harness>=0.7.0",
+    "minimal-harness>=0.7.0a1",
     "rich>=13.0.0",
     "textual>=0.80.0",
 ]
